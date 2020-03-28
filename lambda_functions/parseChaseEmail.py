@@ -4,7 +4,7 @@ import re
 
 import boto3
 import botocore
-
+from datetime import datetime
 
 s3client = boto3.client('s3')
 BUCKET_NAME = os.getenv('bucket_name') # S3 bucket of transaction emails
@@ -36,6 +36,8 @@ def lambda_handler(event, context):
     save_to_db(message_id, last_digits, date, amount, payee)
 
 
+
+
 def parse(contents):
     '''Parse the contents of the email for transaction data.'''
     if 'Your Single Transaction Alert from Chase' not in contents:
@@ -55,9 +57,10 @@ def parse(contents):
 
 def format_date(date):
     '''Convert dates to ISO 8601 (RFC 3339 "full-date") format.'''
-    year = date[-4:]
-    month = date[:2]
-    day = date[3:5]
+    month_and_day = datetime.strptime(f'{date[:3]} {date[3:5]}', '%b %d')
+    year = '20' + date[-2:]
+    month = (f'{month_and_day:%m}') #formats datetime.month object to 2 digit string
+    day = (f'{month_and_day:%d}') #formats datetime.day object to 2 digit string
     return '{0}-{1}-{2}'.format(year, month, day)
 
 
