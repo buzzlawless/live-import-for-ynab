@@ -36,8 +36,6 @@ def lambda_handler(event, context):
     save_to_db(message_id, last_digits, date, amount, payee)
 
 
-
-
 def parse(contents):
     '''Parse the contents of the email for transaction data.'''
     if 'Your Single Transaction Alert from Chase' not in contents:
@@ -51,14 +49,16 @@ def parse(contents):
     remainder = re.split(r'{0}has{0}been{0}authorized{0}on{0}'.format(WS),
                          remainder[1], 1)
     payee = remainder[0]
-    date = format_date(remainder[1][:DATE_LEN])
+    remainder = re.split(r'{0}at'.format(WS),remainder[1],1)
+    date = remainder[0]
     return (last_digits, date, amount, payee)
 
 
 def format_date(date):
     '''Convert dates to ISO 8601 (RFC 3339 "full-date") format.'''
-    month_and_day = datetime.strptime(f'{date[:3]} {date[3:5]}', '%b %d')
-    year = '20' + date[-2:]
+    month_day_year = date.replace(',', '').split(' ')
+    month_and_day = datetime.strptime(f'{month_day_year[0]} {month_day_year[1]}', '%b %d')
+    year = month_day_year[2]
     month = (f'{month_and_day:%m}') #formats datetime.month object to 2 digit string
     day = (f'{month_and_day:%d}') #formats datetime.day object to 2 digit string
     return '{0}-{1}-{2}'.format(year, month, day)
@@ -73,3 +73,4 @@ def save_to_db(message_id, last_digits, date, amount, payee):
                              'date': {'S': date}
                             },
                        ConditionExpression='attribute_not_exists(message_id)')
+
