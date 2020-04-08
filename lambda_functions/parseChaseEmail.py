@@ -12,7 +12,6 @@ BUCKET_NAME = os.getenv('bucket_name') # S3 bucket of transaction emails
 ddbclient = boto3.client('dynamodb')
 TABLE_NAME = os.getenv('table_name') # DynamoDB table of transaction data
 
-DATE_LEN = 10 # len('12/30/2015')
 NUM_DIGITS = 4 # Last digits of credit card
 WS = '(?:\s|&nbsp;)*' # Whitespace regex
 
@@ -49,16 +48,19 @@ def parse(contents):
     remainder = re.split(r'{0}has{0}been{0}authorized{0}on{0}'.format(WS),
                          remainder[1], 1)
     payee = remainder[0]
-    remainder = re.split(r'{0}at'.format(WS),remainder[1],1)
-    date = remainder[0]
+    remainder = re.split(r'{0}at'.format(WS),remainder[1].rstrip(),1)
+    date = format_date(remainder[0])
     return (last_digits, date, amount, payee)
 
 
 def format_date(date):
     '''Convert dates to ISO 8601 (RFC 3339 "full-date") format.'''
+    date = date.replace('\r\n', ' ')
+    print(f'this is the date: {date}')
     month_day_year = date.replace(',', '').split(' ')
+    print(month_day_year)
     month_and_day = datetime.strptime(f'{month_day_year[0]} {month_day_year[1]}', '%b %d')
-    year = month_day_year[2]
+    year= month_day_year[2]
     month = (f'{month_and_day:%m}') #formats datetime.month object to 2 digit string
     day = (f'{month_and_day:%d}') #formats datetime.day object to 2 digit string
     return '{0}-{1}-{2}'.format(year, month, day)
