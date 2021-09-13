@@ -40,8 +40,8 @@ def parse(contents):
     '''Parse the contents of the email for transaction data.'''
     if 'chase' not in contents:
         sys.exit(0)
-    remainder = re.split(r'Account'.format(WS), contents, 1)[1]
-    remainder = re.split(r' \(...'.format(WS), remainder, 1)[1]
+    remainder = re.split(r'[(][.][.][.]'.format(WS), contents,1)[1]
+
     last_digits = remainder[:NUM_DIGITS]
     remainder = re.split(r'Date'.format(WS),
                          remainder, 1)[1]
