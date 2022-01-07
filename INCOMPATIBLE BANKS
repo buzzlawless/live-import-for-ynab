@@ -1,0 +1,6 @@
+When adding to this list please be sure to explain why this bank won't work and the date you last tested
+
+
+Andigo Credit Union
+  Reason: The email sent out does not contain the name of the payee at all. Additionally If multiple transactions are done within a couple of hours the email will combine the totals and only send 1 email. 
+  Date Last Checked: 10/29/2019
