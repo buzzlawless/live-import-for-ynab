@@ -1,9 +1,11 @@
 import os
 import sys
-import re
+import quopri
+from datetime import datetime
 
 import boto3
 import botocore
+from bs4 import BeautifulSoup
 
 
 s3client = boto3.client('s3')
@@ -12,9 +14,7 @@ BUCKET_NAME = os.getenv('bucket_name') # S3 bucket of transaction emails
 ddbclient = boto3.client('dynamodb')
 TABLE_NAME = os.getenv('table_name') # DynamoDB table of transaction data
 
-DATE_LEN = 10 # len('12/30/2015')
 NUM_DIGITS = 4 # Last digits of credit card
-WS = '(?:\s|&nbsp;)*' # Whitespace regex
 
 
 def lambda_handler(event, context):
@@ -36,29 +36,37 @@ def lambda_handler(event, context):
     save_to_db(message_id, last_digits, date, amount, payee)
 
 
+def extract_text(contents):
+    '''Extract text from Quoted-printable HTML'''
+    doctype_declaration = '<!DOCTYPE html'
+    html_doc = quopri.decodestring(
+        doctype_declaration + contents.split(doctype_declaration, 1)[1]
+    )
+    soup = BeautifulSoup(html_doc, 'html.parser')
+    return soup.get_text()
+
+
 def parse(contents):
     '''Parse the contents of the email for transaction data.'''
-    if 'Your Single Transaction Alert from Chase' not in contents:
+    if 'Chase' not in contents:
         sys.exit(0)
-    remainder = re.split(r'ending{0}in{0}'.format(WS), contents, 1)[1]
+    text = extract_text(contents)
+    remainder = text.split('...', 1)[1]
     last_digits = remainder[:NUM_DIGITS]
-    remainder = re.split(r'charge{0}of{0}\(\$USD\){0}'.format(WS),
-                         remainder, 1)[1]
-    remainder = re.split(r'{0}at{0}'.format(WS), remainder, 1)
-    amount = remainder[0]
-    remainder = re.split(r'{0}has{0}been{0}authorized{0}on{0}'.format(WS),
-                         remainder[1], 1)
-    payee = remainder[0]
-    date = format_date(remainder[1][:DATE_LEN])
-    return (last_digits, date, amount, payee)
+    remainder = remainder.split('Date\n', 1)[1]
+    date_string = remainder.split(' at', 1)[0]
+    date_formatted = format_date(date_string)
+    remainder = remainder.split('Merchant\n', 1)[1]
+    payee = remainder.split('\n', 1)[0]
+    remainder = remainder.split('$', 1)[1]
+    amount = remainder.split('\n', 1)[0]
+    return (last_digits, date_formatted, amount, payee)
 
 
-def format_date(date):
-    '''Convert dates to ISO 8601 (RFC 3339 "full-date") format.'''
-    year = date[-4:]
-    month = date[:2]
-    day = date[3:5]
-    return '{0}-{1}-{2}'.format(year, month, day)
+def format_date(date_string):
+    '''Convert date_string from format Jan 2, 2022 to 2022-01-02'''
+    date = datetime.strptime(date_string, '%b %d, %Y')
+    return date.strftime('%Y-%m-%d')
 
 
 def save_to_db(message_id, last_digits, date, amount, payee):
