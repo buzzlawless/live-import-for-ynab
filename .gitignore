@@ -1,3 +1,2 @@
-venv/*
-.vscode/*
-
+**/dependencies
+ynab_live_import_template_packaged.json

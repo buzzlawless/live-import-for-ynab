@@ -31,14 +31,14 @@ The idea sprung into mind after reading this article on [the secret API of banks
 
 The whole stack runs on Amazon Web Services. Simple Email Service receives a notification email, saves it to S3, and triggers a particular lambda function tailored to whichever bank the notification came from. The lambda function retrieves the email from S3, parses it for transaction data (account, payee, amount, date), and writes that data to a DynamoDB table. The table has a stream enabled, which triggers another lambda function when the table is updated.  The function reads the transaction data from the stream and posts the transaction to YNAB using their API. The function finally deletes the email from S3 and the transaction data from DynamoDB.
 
-All of the above can be deployed from a CloudFormation template.
+All of the above can be deployed from a CloudFormation template. That template references the files in this repository for the lambda function code. The deploy script [packages these files into S3 objects that the template can reference](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/cloudformation/package.html) and then deploys the template.
 
 # Setup
 
 After this one-time setup, all future imports are automatic.
 
 ## 1. Create a free Amazon Web Services account (~1 minute)
-Go to https://aws.amazon.com/ and create an account if you don't already have one.
+Go to https://aws.amazon.com/ and create an account. It's a best practice to create separate AWS accounts for separate projects, so I recommend creating a new account even if you already have one.
 ## 2. Register a domain name if you don’t already have one (~5 minutes)
 Register a domain [using Amazon Route 53](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/domain-register.html) ($12/year for a .com domain) if you don’t already have one.  If you already have a domain name (with any domain registrar, not just Amazon Route 53), you can use that instead.  I recommend Amazon Route 53 if you’re registering a new domain because it makes the next step a bit easier.
 ## 3. Verify your domain with Amazon Simple Email Service (~5 minutes)
@@ -89,24 +89,20 @@ Login to your [YNAB](https://app.youneedabudget.com/) account.  Add the last 4 d
 
 It’s okay to have other information in the notes section, but the digits have to be in there somewhere.
 
-## 6. Click "Launch Stack" (~1 minute)
-[![](https://s3.amazonaws.com/ynab-live-import-misc/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?filter=active&templateURL=https%3A%2F%2Fs3.amazonaws.com%2Fynab-live-import-cloud-formation-templates%2FynabLiveImport.template&stackName=YnabLiveImport)
+## 6. Install and configure the AWS CLI (~5 minutes)
+If you don't have the AWS CLI installed already, do so by following [these instructions](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html). Once installed, you'll need to configure the CLI to work with the AWS account you created in Step 1. See [this page for configuration instructions](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html).
 
-Fill in "BudgetId" with the ID of the budget you want to import to.  Your budget ID can be found in the URL when you're looking at that budget in YNAB.
+
+## 7. Clone this git repository and run the deploy script (~3 minutes)
+If you don't have `python3` installed and available on your PATH, you'll need to [do that first](https://wiki.python.org/moin/BeginnersGuide/Download). Once you have Python installed, [clone this repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) and run `chmod +x deploy.sh` followed by `./deploy.sh -b <budgetId> -t <personalAccessToken> -d <domain>`.
+
+Replace `<budgetId>` with the ID of the budget you want to import transactions into.  Your budget ID can be found in the URL when you're looking at that budget in YNAB.
 
 ![YNAB2](https://s3.amazonaws.com/ynab-live-import-misc/YNAB2.png)
 
-Fill in "Domain" with the domain you verified with Amazon Simple Email Service.  Include the ".com", e.g. "example.com".
+Replace `<personalAccessToken>` with your YNAB personal access token.  [Here are instructions for finding your token](https://api.youneedabudget.com/#personal-access-tokens).  Note that that page says, "You should not share this access token with anyone or ask for anyone else's access token. It should be treated with as much care as your main account password."  It's okay for you to submit your token here because the live import infrastructure you're setting up exists on your very own personal Amazon Web Services account that you alone have access to.  Everyone who follows these directions is setting up their own live import system that they control, there is no central live import system that stores people's tokens... that would be bad!
 
-Fill in "Personal Access Token" with your YNAB personal access token.  [Click here](https://api.youneedabudget.com/#personal-access-tokens) to read instructions for finding your token.  Note that that page says, "You should not share this access token with anyone or ask for anyone else's access token. It should be treated with as much care as your main account password."  It's okay for you to submit your token here because the live import infrastructure you're setting up exists on your very own personal Amazon Web Services account that you alone have access to.  Everyone who follows these directions is setting up their own live import system that they control, there is no central live import system that stores people's tokens... that would be bad!
-
-When the Status changes from "CREATE_IN_PROGRESS" to "CREATE_COMPLETE" (a couple minutes), you're almost done!
-
-## 7. Activate live import! (~1 minute)
-
-Go to your [Simple Email Service Rule Sets](https://console.aws.amazon.com/ses/home#receipt-rules:) and activate "ynab-live-import-rule-set"
-
-![RuleSet](https://s3.amazonaws.com/ynab-live-import-misc/RuleSet.png)
+Replace `<domain>` with the domain you verified with Amazon Simple Email Service.  Include the ".com" (or other TLD), e.g. "example.com".
 
 That's it! Automatic credit card imports with no effort on your part are now setup.
 
