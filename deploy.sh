@@ -50,7 +50,7 @@ fi
 # Create AWS resources
 
 BUCKET_ID=$(dd if=/dev/random bs=8 count=1 2>/dev/null | od -An -tx1 | tr -d ' \t\n')
-BUCKET_NAME=ynab-live-import-lambda-artifacts-"$BUCKET_ID"
+BUCKET_NAME=live-import-for-ynab-lambda-artifacts-"$BUCKET_ID"
 aws s3 mb s3://"$BUCKET_NAME"
 echo "Created S3 bucket for lambda artifacts: $BUCKET_NAME"
 
@@ -67,18 +67,18 @@ done
 echo "Packaging CloudFormation template"
 cd ..
 aws cloudformation package \
-    --template-file ynab_live_import_template.json \
+    --template-file live_import_for_ynab_template.json \
     --s3-bucket "$BUCKET_NAME" \
-    --output-template-file ynab_live_import_template_packaged.json \
+    --output-template-file live_import_for_ynab_template_packaged.json \
     --use-json
 
 echo "Deploying CloudFormation stack"
 aws cloudformation deploy \
-    --template-file ynab_live_import_template_packaged.json \
-    --stack-name YnabLiveImport \
+    --template-file live_import_for_ynab_template_packaged.json \
+    --stack-name LiveImportForYnab \
     --parameter-overrides BudgetId="$BUDGET_ID" PersonalAccessToken="$PERSONAL_ACCESS_TOKEN" Domain="$DOMAIN" \
     --capabilities CAPABILITY_NAMED_IAM
 
-echo "Setting ynab-live-import-rule-set as Simple Email Service active receipt rule set"
-aws ses set-active-receipt-rule-set --rule-set-name ynab-live-import-rule-set
+echo "Setting live-import-for-ynab-rule-set as Simple Email Service active receipt rule set"
+aws ses set-active-receipt-rule-set --rule-set-name live-import-for-ynab-rule-set
 

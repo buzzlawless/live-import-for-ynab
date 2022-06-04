@@ -151,11 +151,11 @@
                     "Name": "invoke-chase-lambda"
                 },
                 "RuleSetName": {
-                    "Ref": "ynabLiveImportRuleSet"
+                    "Ref": "liveImportForYnabRuleSet"
                 }
             },
             "DependsOn": [
-                "ynabLiveImportRuleSet"
+                "liveImportForYnabRuleSet"
             ]
         },
         "saveEmail": {
@@ -180,14 +180,14 @@
                     "Name": "save-email"
                 },
                 "RuleSetName": {
-                    "Ref": "ynabLiveImportRuleSet"
+                    "Ref": "liveImportForYnabRuleSet"
                 }
             }
         },
-        "ynabLiveImportRuleSet": {
+        "liveImportForYnabRuleSet": {
             "Type": "AWS::SES::ReceiptRuleSet",
             "Properties": {
-                "RuleSetName": "ynab-live-import-rule-set"
+                "RuleSetName": "live-import-for-ynab-rule-set"
             }
         },
         "transactionEmails": {
@@ -436,7 +436,7 @@
                     "Name": "invoke-discover-lambda"
                 },
                 "RuleSetName": {
-                    "Ref": "ynabLiveImportRuleSet"
+                    "Ref": "liveImportForYnabRuleSet"
                 }
             }
         },
