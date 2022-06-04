@@ -40,10 +40,7 @@
                 "Runtime": "python3.9",
                 "Timeout": 1,
                 "Layers": [ { "Ref": "parseChaseEmailDependencies" } ]
-            },
-            "DependsOn": [
-                "SourceCodeGetPolicy"
-            ]
+            }
         },
         "parseChaseEmailDependencies": {
             "Type" : "AWS::Lambda::LayerVersion",
@@ -76,10 +73,7 @@
                 },
                 "Runtime": "python3.9",
                 "Timeout": 1
-            },
-            "DependsOn": [
-                "SourceCodeGetPolicy"
-            ]
+            }
         },
         "postToYnab": {
             "Type": "AWS::Lambda::Function",
@@ -112,10 +106,7 @@
                 "Runtime": "python3.9",
                 "Timeout": 10,
                 "Layers": [ { "Ref": "postToYnabDependencies" } ]
-            },
-            "DependsOn": [
-                "SourceCodeGetPolicy"
-            ]
+            }
         },
         "postToYnabDependencies": {
             "Type" : "AWS::Lambda::LayerVersion",
@@ -273,10 +264,7 @@
                     ]
                 },
                 "ManagedPolicyArns": [
-                    "arn:aws:iam::aws:policy/service-role/AWSLambdaDynamoDBExecutionRole",
-                    {
-                        "Ref": "SourceCodeGetPolicy"
-                    }
+                    "arn:aws:iam::aws:policy/service-role/AWSLambdaDynamoDBExecutionRole"
                 ],
                 "RoleName": "transactionPoster",
                 "Policies": [
@@ -361,10 +349,7 @@
                     ]
                 },
                 "ManagedPolicyArns": [
-                    "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
-                    {
-                        "Ref": "SourceCodeGetPolicy"
-                    }
+                    "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
                 ],
                 "RoleName": "transactionEmailParser",
                 "Policies": [
@@ -519,22 +504,6 @@
                 "SourceAccount": {
                     "Ref": "AWS::AccountId"
                 }
-            }
-        },
-        "SourceCodeGetPolicy": {
-            "Type": "AWS::IAM::ManagedPolicy",
-            "Properties": {
-                "PolicyDocument": {
-                    "Version": "2012-10-17",
-                    "Statement": [
-                        {
-                            "Effect": "Allow",
-                            "Action": "s3:GetObject",
-                            "Resource": "arn:aws:s3:::ynab-live-import-lambda-functions/*"
-                        }
-                    ]
-                },
-                "ManagedPolicyName": "SourceCodeGetPolicy"
             }
         }
     }
