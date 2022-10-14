@@ -245,7 +245,11 @@
         "StreamSpecification": {
           "StreamViewType": "NEW_IMAGE"
         },
-        "TableName": "transactions"
+        "TableName": "transactions",
+        "TimeToLiveSpecification": {
+          "AttributeName": "ttl",
+          "Enabled": true
+        }
       }
     },
     "transactionStreamToLambda": {
