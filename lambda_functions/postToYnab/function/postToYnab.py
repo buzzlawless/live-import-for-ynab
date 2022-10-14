@@ -21,7 +21,6 @@ def lambda_handler(event, context):
             message_id = image['message_id']['S']
             if is_duplicate_invocation(message_id):
                 continue
-            cleanup(message_id)
             transaction_data = {'transaction': {
                 'account_id': get_account_id(image['last_digits']['S']),
                 'date': image['date']['S'],
@@ -97,8 +96,3 @@ def post_transaction(data):
         print(r.json())
         print('Attempted to post:\n' + json.dumps(data))
         sys.exit(1)
-
-
-def cleanup(message_id):
-    ddbclient.delete_item(TableName=TABLE_NAME,
-                          Key={'message_id': {'S': message_id}})

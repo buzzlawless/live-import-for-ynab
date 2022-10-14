@@ -295,24 +295,6 @@
               "Statement": [
                 {
                   "Effect": "Allow",
-                  "Action": "dynamodb:DeleteItem",
-                  "Resource": {
-                    "Fn::GetAtt": [
-                      "transactionData",
-                      "Arn"
-                    ]
-                  }
-                }
-              ]
-            },
-            "PolicyName": "TransactionsDBDelete"
-          },
-          {
-            "PolicyDocument": {
-              "Version": "2012-10-17",
-              "Statement": [
-                {
-                  "Effect": "Allow",
                   "Action": "dynamodb:GetItem",
                   "Resource": {
                     "Fn::GetAtt": [
