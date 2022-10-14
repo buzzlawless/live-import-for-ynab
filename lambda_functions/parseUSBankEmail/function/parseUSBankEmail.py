@@ -1,6 +1,7 @@
 import os
 import sys
 import re
+import time
 
 import boto3
 import botocore
@@ -54,11 +55,15 @@ def parse(contents):
 
 
 def save_to_db(message_id, last_digits, date, amount, payee):
+    days_before_expiration = 30
+    seconds_per_day = 86400
+    expiration_time = int(time.time()) + days_before_expiration * seconds_per_day
     ddbclient.put_item(TableName=TABLE_NAME,
                        Item={'message_id': {'S': message_id},
                               'last_digits': {'S': last_digits},
                               'amount': {'S': amount},
                               'payee': {'S': payee},
-                              'date': {'S': date}
+                              'date': {'S': date},
+                              'ttl': {'N': expiration_time}
                              },
                        ConditionExpression='attribute_not_exists(message_id)')
