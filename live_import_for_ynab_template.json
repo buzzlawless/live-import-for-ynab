@@ -87,9 +87,6 @@
         "Code": "lambda_functions/postToYnab/function/",
         "Environment": {
           "Variables": {
-            "bucket_name": {
-              "Ref": "transactionEmails"
-            },
             "table_name": {
               "Ref": "transactionData"
             },
@@ -323,32 +320,6 @@
               ]
             },
             "PolicyName": "TransactionsDBGet"
-          },
-          {
-            "PolicyDocument": {
-              "Version": "2012-10-17",
-              "Statement": [
-                {
-                  "Effect": "Allow",
-                  "Action": "s3:DeleteObject",
-                  "Resource": {
-                    "Fn::Join": [
-                      "",
-                      [
-                        {
-                          "Fn::GetAtt": [
-                            "transactionEmails",
-                            "Arn"
-                          ]
-                        },
-                        "/*"
-                      ]
-                    ]
-                  }
-                }
-              ]
-            },
-            "PolicyName": "TransactionEmailsDelete"
           }
         ]
       }

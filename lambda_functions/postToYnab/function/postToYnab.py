@@ -7,8 +7,6 @@ import botocore
 import requests
 
 
-s3client = boto3.client('s3')
-BUCKET_NAME = os.getenv('bucket_name') # S3 bucket of transaction emails
 ddbclient = boto3.client('dynamodb')
 TABLE_NAME = os.getenv('table_name') # DynamoDB table of transactions
 
@@ -104,4 +102,3 @@ def post_transaction(data):
 def cleanup(message_id):
     ddbclient.delete_item(TableName=TABLE_NAME,
                           Key={'message_id': {'S': message_id}})
-    s3client.delete_object(Bucket=BUCKET_NAME, Key=message_id)
