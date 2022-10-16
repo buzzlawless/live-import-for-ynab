@@ -1,8 +1,6 @@
 import os
 import sys
-import re
-import datetime
-import calendar
+from datetime import datetime
 import time
 
 import boto3
@@ -16,7 +14,6 @@ ddbclient = boto3.client('dynamodb')
 TABLE_NAME = os.getenv('table_name') # DynamoDB table of transaction data
 
 NUM_DIGITS = 4 # Last digits of credit card
-WS = '(?:\s|&nbsp;)*' # Whitespace regex
 
 
 def lambda_handler(event, context):
@@ -24,8 +21,14 @@ def lambda_handler(event, context):
     data, and write that data to DynamoDB.'''
     ses_notification = event['Records'][0]['ses']
     message_id = ses_notification['mail']['messageId']
+    contents = get_email(BUCKET_NAME, message_id)
+    (last_digits, date, amount, payee) = parse(contents)
+    save_to_db(message_id, last_digits, date, amount, payee)
+
+
+def get_email(bucket, message_id):
     try:
-        email = s3client.get_object(Bucket=BUCKET_NAME, Key=message_id)
+        email = s3client.get_object(Bucket=bucket, Key=message_id)
     except botocore.exceptions.ClientError as e:
         if e.response['Error']['Code'] == '404':
             # Could not find email. Exit program.
@@ -33,40 +36,26 @@ def lambda_handler(event, context):
             sys.exit(1)
         else:
             raise
-    contents = email['Body'].read().decode('utf-8')
-    (last_digits, date, amount, payee) = parse(contents)
-    save_to_db(message_id, last_digits, date, amount, payee)
+    return email['Body'].read().decode('utf-8')
 
 
 def parse(contents):
     '''Parse the contents of the email for transaction data.'''
-    if 'Your purchase exceeds the amount you set' not in contents:
-        sys.exit(0)
-    last_digits = re.split(r'account{0}number{0}ending{0}with{0}'.format(WS),
-                           contents, 1)[1][:NUM_DIGITS]
-    remainder = re.split(r'Merchant:{0}'.format(WS), contents, 1)[1]
-    remainder = re.split(r'{0}Amount:{0}\$'.format(WS), remainder, 1)
-    payee = remainder[0]
-    remainder = re.split(r'{0}Date:{0}'.format(WS), remainder[1], 1)
-    amount = remainder[0]
-    remainder = re.split(r'{0}Wasn\'t'.format(WS), remainder[1], 1)[0]
-    date = format_date(remainder)
+    remainder = contents.split('Account ending in ')[1]
+    last_digits = remainder[:NUM_DIGITS]
+    remainder = remainder.split('Transaction Date: ')[1]
+    date = format_date(remainder.split('<', maxsplit=1)[0])
+    remainder = remainder.split('Merchant: ')[1]
+    payee = remainder.split('<', maxsplit=1)[0]
+    remainder = remainder.split('Amount: $')[1]
+    amount = remainder.split('<', maxsplit=1)[0]
     return (last_digits, date, amount, payee)
 
 
-def format_date(date):
-    '''Convert dates to ISO 8601 (RFC 3339 "full-date") format.'''
-    remainder = re.split('(?:\s|&nbsp;)+'.format(WS), date, 1)
-    month_name = remainder[0]
-    remainder = re.split(',{0}'.format(WS), remainder[1], 1)
-    day = remainder[0]
-    year = remainder[1]
-    month = datetime.date.month # Fallback
-    for i in range(12):
-        if month_name == calendar.month_name[i]:
-            month = i
-            break
-    return '{0}-{1}-{2}'.format(year, month, day)
+def format_date(date_string):
+    '''Convert date_string from format January 2, 2022 to 2022-01-02'''
+    date = datetime.strptime(date_string, '%B %d, %Y')
+    return date.strftime('%Y-%m-%d')
 
 
 def save_to_db(message_id, last_digits, date, amount, payee):
