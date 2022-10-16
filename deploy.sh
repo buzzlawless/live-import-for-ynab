@@ -56,6 +56,9 @@ echo "Created S3 bucket for lambda artifacts: $BUCKET_NAME"
 cd lambda_functions
 for f in *; do
     cd "$f"
+    if [ -d dependencies ]; then
+        rm -r dependencies
+    fi
     if [ -f requirements.txt ]; then
         echo "Installing dependencies for $f lambda function"
         python3 -m pip install --target dependencies/python/ -r requirements.txt
