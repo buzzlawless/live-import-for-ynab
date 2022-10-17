@@ -78,7 +78,7 @@ def parse(contents):
 def save_to_db(message_id, last_digits, date, amount, payee):
     days_before_expiration = 30
     seconds_per_day = 86400
-    expiration_time = int(time.time()) + days_before_expiration * seconds_per_day
+    expiration_time = str(int(time.time()) + days_before_expiration * seconds_per_day)
     ddbclient.put_item(TableName=TABLE_NAME,
                        Item={'message_id': {'S': message_id},
                              'last_digits': {'S': last_digits},
