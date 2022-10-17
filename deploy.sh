@@ -49,9 +49,14 @@ fi
 
 # Create AWS resources
 
-BUCKET_NAME=live-import-for-ynab-lambda-artifacts-"$BUDGET_ID"
-aws s3 mb s3://"$BUCKET_NAME"
-echo "Created S3 bucket for lambda artifacts: $BUCKET_NAME"
+BUCKET_NAME=ynab-lambda-artifacts-"$BUDGET_ID"
+s3_bucket_exists() {   
+    aws s3api head-bucket --bucket $BUCKET_NAME
+}
+if ! s3_bucket_exists; then
+    aws s3 mb s3://"$BUCKET_NAME"
+    echo "Created S3 bucket for lambda artifacts: $BUCKET_NAME"
+fi
 
 cd lambda_functions
 for f in *; do
