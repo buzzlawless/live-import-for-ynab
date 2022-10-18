@@ -55,6 +55,46 @@
         "Content": "lambda_functions/parseChaseEmail/dependencies/"
       }
     },
+    "parseCitiEmail": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": "lambda_functions/parseCitiEmail/function/",
+        "Environment": {
+          "Variables": {
+            "bucket_name": {
+              "Ref": "transactionEmails"
+            },
+            "table_name": {
+              "Ref": "transactionData"
+            }
+          }
+        },
+        "FunctionName": "parseCitiEmail",
+        "Handler": "parseCitiEmail.lambda_handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "transactionEmailParser",
+            "Arn"
+          ]
+        },
+        "Runtime": "python3.9",
+        "Timeout": 1,
+        "Layers": [
+          {
+            "Ref": "parseCitiEmailDependencies"
+          }
+        ]
+      }
+    },
+    "parseCitiEmailDependencies": {
+      "Type": "AWS::Lambda::LayerVersion",
+      "Properties": {
+        "CompatibleRuntimes": [
+          "python3.9"
+        ],
+        "Content": "lambda_functions/parseCitiEmail/dependencies/"
+      }
+    },
     "parseDiscoverEmail": {
       "Type": "AWS::Lambda::Function",
       "Properties": {
@@ -158,6 +198,49 @@
           ],
           "Enabled": true,
           "Name": "invoke-chase-lambda"
+        },
+        "RuleSetName": {
+          "Ref": "liveImportForYnabRuleSet"
+        }
+      },
+      "DependsOn": [
+        "liveImportForYnabRuleSet"
+      ]
+    },
+    "invokeCitiLambda": {
+      "Type": "AWS::SES::ReceiptRule",
+      "Properties": {
+        "After": {
+          "Ref": "invokeDiscoverLambda"
+        },
+        "Rule": {
+          "Recipients": [
+            {
+              "Fn::Join": [
+                "",
+                [
+                  "citiynab@",
+                  {
+                    "Ref": "Domain"
+                  }
+                ]
+              ]
+            }
+          ],
+          "Actions": [
+            {
+              "LambdaAction": {
+                "FunctionArn": {
+                  "Fn::GetAtt": [
+                    "parseCitiEmail",
+                    "Arn"
+                  ]
+                }
+              }
+            }
+          ],
+          "Enabled": true,
+          "Name": "invoke-citi-lambda"
         },
         "RuleSetName": {
           "Ref": "liveImportForYnabRuleSet"
@@ -463,6 +546,19 @@
         "Action": "lambda:InvokeFunction",
         "FunctionName": {
           "Ref": "parseChaseEmail"
+        },
+        "Principal": "ses.amazonaws.com",
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        }
+      }
+    },
+    "invokeCitiLambdaPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "parseCitiEmail"
         },
         "Principal": "ses.amazonaws.com",
         "SourceAccount": {
