@@ -88,4 +88,4 @@ aws cloudformation deploy \
 
 echo "Setting live-import-for-ynab-rule-set as Simple Email Service active receipt rule set"
 aws ses set-active-receipt-rule-set --rule-set-name live-import-for-ynab-rule-set
-
+echo "Finished deployment"
