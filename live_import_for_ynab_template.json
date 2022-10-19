@@ -95,6 +95,46 @@
         "Content": "lambda_functions/parseCitiEmail/dependencies/"
       }
     },
+    "parseWellsFargoEmail": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": "lambda_functions/parseWellsFargoEmail/function/",
+        "Environment": {
+          "Variables": {
+            "bucket_name": {
+              "Ref": "transactionEmails"
+            },
+            "table_name": {
+              "Ref": "transactionData"
+            }
+          }
+        },
+        "FunctionName": "parseWellsFargoEmail",
+        "Handler": "parseWellsFargoEmail.lambda_handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "transactionEmailParser",
+            "Arn"
+          ]
+        },
+        "Runtime": "python3.9",
+        "Timeout": 1,
+        "Layers": [
+          {
+            "Ref": "parseWellsFargoEmailDependencies"
+          }
+        ]
+      }
+    },
+    "parseWellsFargoEmailDependencies": {
+      "Type": "AWS::Lambda::LayerVersion",
+      "Properties": {
+        "CompatibleRuntimes": [
+          "python3.9"
+        ],
+        "Content": "lambda_functions/parseWellsFargoEmail/dependencies/"
+      }
+    },
     "parseDiscoverEmail": {
       "Type": "AWS::Lambda::Function",
       "Properties": {
@@ -241,6 +281,49 @@
           ],
           "Enabled": true,
           "Name": "invoke-citi-lambda"
+        },
+        "RuleSetName": {
+          "Ref": "liveImportForYnabRuleSet"
+        }
+      },
+      "DependsOn": [
+        "liveImportForYnabRuleSet"
+      ]
+    },
+    "invokeWellsFargoLambda": {
+      "Type": "AWS::SES::ReceiptRule",
+      "Properties": {
+        "After": {
+          "Ref": "invokeCitiLambda"
+        },
+        "Rule": {
+          "Recipients": [
+            {
+              "Fn::Join": [
+                "",
+                [
+                  "wellsfargoynab@",
+                  {
+                    "Ref": "Domain"
+                  }
+                ]
+              ]
+            }
+          ],
+          "Actions": [
+            {
+              "LambdaAction": {
+                "FunctionArn": {
+                  "Fn::GetAtt": [
+                    "parseWellsFargoEmail",
+                    "Arn"
+                  ]
+                }
+              }
+            }
+          ],
+          "Enabled": true,
+          "Name": "invoke-wells-fargo-lambda"
         },
         "RuleSetName": {
           "Ref": "liveImportForYnabRuleSet"
@@ -559,6 +642,19 @@
         "Action": "lambda:InvokeFunction",
         "FunctionName": {
           "Ref": "parseCitiEmail"
+        },
+        "Principal": "ses.amazonaws.com",
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        }
+      }
+    },
+    "invokeWellsFargoLambdaPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "parseWellsFargoEmail"
         },
         "Principal": "ses.amazonaws.com",
         "SourceAccount": {
