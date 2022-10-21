@@ -7,8 +7,6 @@ Wouldn’t it be great – magical, even – if YNAB could automatically import 
 
 After a quick one-time setup, any credit card transaction will automatically appear in YNAB mere seconds after the purchase.    
 
-I’ve only programmed support for Chase and Discover credit cards for now but the YNAB developer community and I can add support for other cards to this open-source project. Automatically importing debit card transactions, ATM withdrawals and deposits, bank transfers, and direct deposits are all possible and support for these can be added in the future!
-
 # Demo Video
 
 Click the image to watch a demo purchase!
@@ -29,9 +27,18 @@ The idea sprung into mind after reading this article on [the secret API of banks
 
 ### For techies
 
-The whole stack runs on Amazon Web Services. Simple Email Service receives a notification email, saves it to S3, and triggers a particular lambda function tailored to whichever bank the notification came from. The lambda function retrieves the email from S3, parses it for transaction data (account, payee, amount, date), and writes that data to a DynamoDB table. The table has a stream enabled, which triggers another lambda function when the table is updated.  The function reads the transaction data from the stream and posts the transaction to YNAB using their API. The function finally deletes the email from S3 and the transaction data from DynamoDB.
+The whole stack runs on Amazon Web Services. Simple Email Service receives a notification email, saves it to S3, and triggers a particular lambda function tailored to whichever bank the notification came from. The lambda function retrieves the email from S3, parses it for transaction data (account, payee, amount, date), and writes that data to a DynamoDB table. The table has a stream enabled, which triggers another lambda function when the table is updated.  The function reads the transaction data from the stream and posts the transaction to YNAB using their API.
 
 All of the above can be deployed from a CloudFormation template. That template references the files in this repository for the lambda function code. The deploy script [packages these files into S3 objects that the template can reference](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/cloudformation/package.html) and then deploys the template.
+
+# Supported Banks
+
+| Bank | Date Last Verified |
+| --- | --- |
+| Chase | Oct 21 2022 |
+| Citi | Oct 21 2022 |
+| Discover | Oct 21 2022 |
+| Wells Fargo | Oct 21 2022 |
 
 # Setup
 
@@ -44,43 +51,8 @@ Register a domain [using Amazon Route 53](https://docs.aws.amazon.com/Route53/la
 ## 3. Verify your domain with Amazon Simple Email Service (~5 minutes)
 Follow [these instructions](https://docs.aws.amazon.com/ses/latest/DeveloperGuide/verify-domain-procedure.html).  No need for DKIM signing.
 ## 4. Set up email notifications with your bank (~5 minutes)
-As of today, only Chase and Discover are supported.
-### Chase
-Login to your account at [Chase.com](https://www.chase.com/).
+You can find instructions for specific banks in the [docs](docs) directory.
 
-Click the hamburger menu in the upper-left corner.
-
-![Chase1](https://s3.amazonaws.com/ynab-live-import-misc/Chase1.png)
-
-Click “Profile & settings”
-
-![Chase2](https://s3.amazonaws.com/ynab-live-import-misc/Chase2.png)
-
-Click “Alerts delivery”
-
-![Chase3](https://s3.amazonaws.com/ynab-live-import-misc/Chase3.png)
-
-Click “Add”
-
-![Chase4](https://s3.amazonaws.com/ynab-live-import-misc/Chase4.png)
-
-Add “chaseynab@yourdomain.com”, but replace “yourdomain” with the domain name you verified with Simple Email Service.  The nickname can be whatever you’d like.  Select “Plain text” for the email format.
-
-![Chase5](https://s3.amazonaws.com/ynab-live-import-misc/Chase5.png)
-
-Click “Choose alerts”
-
-![Chase6](https://s3.amazonaws.com/ynab-live-import-misc/Chase6.png)
-
-Click “Protection and security”.  Add an email alert for the YNAB email for card transactions over $0
-
-![Chase7](https://s3.amazonaws.com/ynab-live-import-misc/Chase7.png)
-
-### Discover
-Login to your account at Discover.com
-Go to the Profile page, click “Edit contact info”, and change your email address to “discoverynab@yourdomain.com”, but replace “yourdomain” with the domain name you verified with Simple Email Service.
-
-![Discover](https://s3.amazonaws.com/ynab-live-import-misc/Discover.png)
 
 ## 5. Add the last 4 digits of your credit card to your YNAB account’s note section (~1 minute)
 Login to your [YNAB](https://app.youneedabudget.com/) account.  Add the last 4 digits of your card number to your YNAB account notes section.  E.g. if your last 4 digits are 1234, it should look like this:
@@ -114,4 +86,4 @@ Other than the cost of a domain ($12/year with Amazon Route53), absolutely free 
 Nope! The beauty of this solution is that the entire infrastructure is hosted on your very own Amazon Web Services account that you alone have access to.
 
 ## What accounts/transactions are supported?
-Right now Chase and Discover credit card transactions are supported.  I hope to add support for debit card transactions, ATM withdrawals and deposits, bank transfers, and direct deposits in the near future.
+See this [table of supported banks](#supported-banks).  Right now only credit card transactions are supported.  I hope to add support for debit card transactions, ATM withdrawals and deposits, bank transfers, and direct deposits in the future.
