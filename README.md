@@ -51,7 +51,7 @@ Register a domain [using Amazon Route 53](https://docs.aws.amazon.com/Route53/la
 ## 3. Verify your domain with Amazon Simple Email Service (~5 minutes)
 Follow [these instructions](https://docs.aws.amazon.com/ses/latest/DeveloperGuide/verify-domain-procedure.html). No need for DKIM signing.
 ## 4. Set up email notifications with your bank (~5 minutes)
-You can find instructions for specific banks in the [docs](docs) directory.
+You can find instructions for specific banks in the [docs/bank_instructions](docs/bank_instructions) directory.
 
 
 ## 5. Add the last 4 digits of your credit card to your YNAB account’s note section (~1 minute)
