@@ -1,0 +1,21 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns='http://www.w3.org/2005/Atom' xmlns:apps='http://schemas.google.com/apps/2006'>
+	<title>Mail Filters</title>
+	<id>tag:mail.google.com,2008:filters:z0000001666399160833*8003707803632539232</id>
+	<updated>2022-10-22T24:39:43Z</updated>
+	<author>
+		<name>buzzlawless</name>
+	</author>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001666399160833*8003707803632539232</id>
+		<updated>2022-10-22T24:39:43Z</updated>
+		<content></content>
+		<apps:property name='from' value='discover@services.discover.com'/>
+		<apps:property name='subject' value='Transaction Alert'/>
+		<apps:property name='shouldMarkAsRead' value='true'/>
+		<apps:property name='forwardTo' value='discoverynab@yourdomain.com'/>
+		<apps:property name='shouldTrash' value='true'/>
+	</entry>
+</feed>

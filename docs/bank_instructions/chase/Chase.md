@@ -1,4 +1,4 @@
-### Chase
+# Chase
 Login to your account at [Chase.com](https://www.chase.com/).
 
 Click the hamburger menu in the upper-left corner.
