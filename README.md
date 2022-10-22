@@ -87,3 +87,6 @@ Nope! The beauty of this solution is that the entire infrastructure is hosted on
 
 ## What accounts/transactions are supported?
 See this [table of supported banks](#supported-banks). Right now only credit card transactions are supported. I hope to add support for debit card transactions, ATM withdrawals and deposits, bank transfers, and direct deposits in the future.
+
+## How do I update/pull latest changes?
+To incorporate changes made to this repository after you set up your system on AWS, simply `git pull` the latest changes and run the `deploy.sh` script again. If you run into issues, deleting your CloudFormation stack before running the deploy script is foolproof.
