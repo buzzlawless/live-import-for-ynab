@@ -41,6 +41,32 @@
         "Timeout": 1
       }
     },
+    "parseAssociatedEmail": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": "lambda_functions/parseAssociatedEmail/function/",
+        "Environment": {
+          "Variables": {
+            "bucket_name": {
+              "Ref": "transactionEmails"
+            },
+            "table_name": {
+              "Ref": "transactionData"
+            }
+          }
+        },
+        "FunctionName": "parseAssociatedEmail",
+        "Handler": "parseAssociatedEmail.lambda_handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "transactionEmailParser",
+            "Arn"
+          ]
+        },
+        "Runtime": "python3.9",
+        "Timeout": 1
+      }
+    },
     "parseChaseEmail": {
       "Type": "AWS::Lambda::Function",
       "Properties": {
@@ -273,11 +299,54 @@
         "liveImportForYnabRuleSet"
       ]
     },
-    "invokeChaseLambda": {
+    "invokeAssociatedLambda": {
       "Type": "AWS::SES::ReceiptRule",
       "Properties": {
         "After": {
           "Ref": "invokeAlliantLambda"
+        },
+        "Rule": {
+          "Recipients": [
+            {
+              "Fn::Join": [
+                "",
+                [
+                  "associatedynab@",
+                  {
+                    "Ref": "Domain"
+                  }
+                ]
+              ]
+            }
+          ],
+          "Actions": [
+            {
+              "LambdaAction": {
+                "FunctionArn": {
+                  "Fn::GetAtt": [
+                    "parseAssociatedEmail",
+                    "Arn"
+                  ]
+                }
+              }
+            }
+          ],
+          "Enabled": true,
+          "Name": "invoke-associated-lambda"
+        },
+        "RuleSetName": {
+          "Ref": "liveImportForYnabRuleSet"
+        }
+      },
+      "DependsOn": [
+        "liveImportForYnabRuleSet"
+      ]
+    },
+    "invokeChaseLambda": {
+      "Type": "AWS::SES::ReceiptRule",
+      "Properties": {
+        "After": {
+          "Ref": "invokeAssociatedLambda"
         },
         "Rule": {
           "Recipients": [
@@ -698,6 +767,19 @@
         "Action": "lambda:InvokeFunction",
         "FunctionName": {
           "Ref": "parseAlliantEmail"
+        },
+        "Principal": "ses.amazonaws.com",
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        }
+      }
+    },
+    "invokeAssociatedLambdaPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "parseAssociatedEmail"
         },
         "Principal": "ses.amazonaws.com",
         "SourceAccount": {
