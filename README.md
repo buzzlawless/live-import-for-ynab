@@ -13,14 +13,6 @@ Click the image to watch a demo purchase!
 
 [![](https://s3.amazonaws.com/ynab-live-import-misc/DemoVideoPreview.jpg)](https://vimeo.com/285756273)
 
-Music credits:
-
-Happy Alley Kevin MacLeod (incompetech.com)
-
-Licensed under Creative Commons: By Attribution 3.0
-
-http://creativecommons.org/licenses/by/3.0/
-
 ## So how does it work?
 
 The idea sprung into mind after reading this article on [the secret API of banks](http://gduverger.com/secret-api-banks). Banks, especially in the US, are not as gracious as YNAB and do not provide an API for developers. But, there’s a workaround. We’re all familiar with the email letting us know when there’s been a charge greater than $100, for example, alerting us to possible credit card theft. It turns out you can set this threshold to $0 and receive an email about every transaction. All that’s left is to programmatically parse the email to find the relevant information and submit it to YNAB! And don’t worry, you’ll set up a separate email for these notifications so your inbox won’t be bombarded with notifications.
