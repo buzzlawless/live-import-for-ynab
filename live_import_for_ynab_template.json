@@ -213,6 +213,32 @@
         "Timeout": 1
       }
     },
+    "parseUSBankEmail": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": "lambda_functions/parseUSBankEmail/function/",
+        "Environment": {
+          "Variables": {
+            "bucket_name": {
+              "Ref": "transactionEmails"
+            },
+            "table_name": {
+              "Ref": "transactionData"
+            }
+          }
+        },
+        "FunctionName": "parseUSBankEmail",
+        "Handler": "parseUSBankEmail.lambda_handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "transactionEmailParser",
+            "Arn"
+          ]
+        },
+        "Runtime": "python3.9",
+        "Timeout": 1
+      }
+    },
     "postToYnab": {
       "Type": "AWS::Lambda::Function",
       "Properties": {
@@ -721,6 +747,46 @@
         }
       }
     },
+    "invokeUSBankLambda": {
+      "Type": "AWS::SES::ReceiptRule",
+      "Properties": {
+        "After": {
+          "Ref": "invokeWellsFargoLambda"
+        },
+        "Rule": {
+          "Recipients": [
+            {
+              "Fn::Join": [
+                "",
+                [
+                  "usbankynab@",
+                  {
+                    "Ref": "Domain"
+                  }
+                ]
+              ]
+            }
+          ],
+          "Actions": [
+            {
+              "LambdaAction": {
+                "FunctionArn": {
+                  "Fn::GetAtt": [
+                    "parseUSBankEmail",
+                    "Arn"
+                  ]
+                }
+              }
+            }
+          ],
+          "Enabled": true,
+          "Name": "invoke-us-bank-lambda"
+        },
+        "RuleSetName": {
+          "Ref": "liveImportForYnabRuleSet"
+        }
+      }
+    },
     "emailsBucketPolicy": {
       "Type": "AWS::S3::BucketPolicy",
       "Properties": {
@@ -832,6 +898,19 @@
         "Action": "lambda:InvokeFunction",
         "FunctionName": {
           "Ref": "parseDiscoverEmail"
+        },
+        "Principal": "ses.amazonaws.com",
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        }
+      }
+    },
+    "invokeUSBankLambdaPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "parseUSBankEmail"
         },
         "Principal": "ses.amazonaws.com",
         "SourceAccount": {
