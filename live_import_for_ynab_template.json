@@ -229,7 +229,7 @@
       ],
       "Properties": {
         "After": {
-          "Ref": "invokeDiscoverLambda"
+          "Ref": "invokeChaseLambda"
         },
         "Rule": {
           "Actions": [
@@ -282,7 +282,7 @@
     "invokeDiscoverLambda": {
       "Properties": {
         "After": {
-          "Ref": "invokeChaseLambda"
+          "Ref": "invokeCitiLambda"
         },
         "Rule": {
           "Actions": [
@@ -335,7 +335,7 @@
     "invokeUSBankLambda": {
       "Properties": {
         "After": {
-          "Ref": "invokeWellsFargoLambda"
+          "Ref": "invokeDiscoverLambda"
         },
         "Rule": {
           "Actions": [
@@ -391,7 +391,7 @@
       ],
       "Properties": {
         "After": {
-          "Ref": "invokeCitiLambda"
+          "Ref": "invokeUSBankLambda"
         },
         "Rule": {
           "Actions": [
