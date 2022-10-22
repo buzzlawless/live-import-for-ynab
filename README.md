@@ -27,9 +27,12 @@ All of the above can be deployed from a CloudFormation template. That template r
 
 | Bank | Date Last Verified |
 | --- | --- |
+| Alliant | May 16 2019 |
+| Associated | May 16 2019 |
 | Chase | Oct 21 2022 |
 | Citi | Oct 21 2022 |
 | Discover | Oct 21 2022 |
+| US Bank | | Oct 29 2019 |
 | Wells Fargo | Oct 21 2022 |
 
 # Setup
