@@ -2,21 +2,452 @@
   "AWSTemplateFormatVersion": "2010-09-09",
   "Parameters": {
     "BudgetId": {
-      "Type": "String",
-      "Description": "YNAB budget id"
-    },
-    "PersonalAccessToken": {
-      "Type": "String",
-      "Description": "YNAB API personal access token"
+      "Description": "YNAB budget id",
+      "Type": "String"
     },
     "Domain": {
-      "Type": "String",
-      "Description": "Domain that receives transaction emails (example.com)"
+      "Description": "Domain that receives transaction emails (example.com)",
+      "Type": "String"
+    },
+    "PersonalAccessToken": {
+      "Description": "YNAB API personal access token",
+      "Type": "String"
     }
   },
   "Resources": {
+    "emailsBucketPolicy": {
+      "Properties": {
+        "Bucket": {
+          "Ref": "transactionEmails"
+        },
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "s3:PutObject",
+              "Condition": {
+                "StringEquals": {
+                  "aws:Referer": {
+                    "Ref": "AWS::AccountId"
+                  }
+                }
+              },
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ses.amazonaws.com"
+              },
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:aws:s3:::",
+                    {
+                      "Ref": "transactionEmails"
+                    },
+                    "/*"
+                  ]
+                ]
+              },
+              "Sid": "AllowSESPuts"
+            }
+          ],
+          "Version": "2012-10-17"
+        }
+      },
+      "Type": "AWS::S3::BucketPolicy"
+    },
+    "invokeAlliantLambda": {
+      "DependsOn": [
+        "liveImportForYnabRuleSet"
+      ],
+      "Properties": {
+        "After": {
+          "Ref": "saveEmail"
+        },
+        "Rule": {
+          "Actions": [
+            {
+              "LambdaAction": {
+                "FunctionArn": {
+                  "Fn::GetAtt": [
+                    "parseAlliantEmail",
+                    "Arn"
+                  ]
+                }
+              }
+            }
+          ],
+          "Enabled": true,
+          "Name": "invoke-alliant-lambda",
+          "Recipients": [
+            {
+              "Fn::Join": [
+                "",
+                [
+                  "alliantynab@",
+                  {
+                    "Ref": "Domain"
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        "RuleSetName": {
+          "Ref": "liveImportForYnabRuleSet"
+        }
+      },
+      "Type": "AWS::SES::ReceiptRule"
+    },
+    "invokeAlliantLambdaPermission": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "parseAlliantEmail"
+        },
+        "Principal": "ses.amazonaws.com",
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        }
+      },
+      "Type": "AWS::Lambda::Permission"
+    },
+    "invokeAssociatedLambda": {
+      "DependsOn": [
+        "liveImportForYnabRuleSet"
+      ],
+      "Properties": {
+        "After": {
+          "Ref": "invokeAlliantLambda"
+        },
+        "Rule": {
+          "Actions": [
+            {
+              "LambdaAction": {
+                "FunctionArn": {
+                  "Fn::GetAtt": [
+                    "parseAssociatedEmail",
+                    "Arn"
+                  ]
+                }
+              }
+            }
+          ],
+          "Enabled": true,
+          "Name": "invoke-associated-lambda",
+          "Recipients": [
+            {
+              "Fn::Join": [
+                "",
+                [
+                  "associatedynab@",
+                  {
+                    "Ref": "Domain"
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        "RuleSetName": {
+          "Ref": "liveImportForYnabRuleSet"
+        }
+      },
+      "Type": "AWS::SES::ReceiptRule"
+    },
+    "invokeAssociatedLambdaPermission": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "parseAssociatedEmail"
+        },
+        "Principal": "ses.amazonaws.com",
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        }
+      },
+      "Type": "AWS::Lambda::Permission"
+    },
+    "invokeChaseLambda": {
+      "DependsOn": [
+        "liveImportForYnabRuleSet"
+      ],
+      "Properties": {
+        "After": {
+          "Ref": "invokeAssociatedLambda"
+        },
+        "Rule": {
+          "Actions": [
+            {
+              "LambdaAction": {
+                "FunctionArn": {
+                  "Fn::GetAtt": [
+                    "parseChaseEmail",
+                    "Arn"
+                  ]
+                }
+              }
+            }
+          ],
+          "Enabled": true,
+          "Name": "invoke-chase-lambda",
+          "Recipients": [
+            {
+              "Fn::Join": [
+                "",
+                [
+                  "chaseynab@",
+                  {
+                    "Ref": "Domain"
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        "RuleSetName": {
+          "Ref": "liveImportForYnabRuleSet"
+        }
+      },
+      "Type": "AWS::SES::ReceiptRule"
+    },
+    "invokeChaseLambdaPermission": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "parseChaseEmail"
+        },
+        "Principal": "ses.amazonaws.com",
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        }
+      },
+      "Type": "AWS::Lambda::Permission"
+    },
+    "invokeCitiLambda": {
+      "DependsOn": [
+        "liveImportForYnabRuleSet"
+      ],
+      "Properties": {
+        "After": {
+          "Ref": "invokeDiscoverLambda"
+        },
+        "Rule": {
+          "Actions": [
+            {
+              "LambdaAction": {
+                "FunctionArn": {
+                  "Fn::GetAtt": [
+                    "parseCitiEmail",
+                    "Arn"
+                  ]
+                }
+              }
+            }
+          ],
+          "Enabled": true,
+          "Name": "invoke-citi-lambda",
+          "Recipients": [
+            {
+              "Fn::Join": [
+                "",
+                [
+                  "citiynab@",
+                  {
+                    "Ref": "Domain"
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        "RuleSetName": {
+          "Ref": "liveImportForYnabRuleSet"
+        }
+      },
+      "Type": "AWS::SES::ReceiptRule"
+    },
+    "invokeCitiLambdaPermission": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "parseCitiEmail"
+        },
+        "Principal": "ses.amazonaws.com",
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        }
+      },
+      "Type": "AWS::Lambda::Permission"
+    },
+    "invokeDiscoverLambda": {
+      "Properties": {
+        "After": {
+          "Ref": "invokeChaseLambda"
+        },
+        "Rule": {
+          "Actions": [
+            {
+              "LambdaAction": {
+                "FunctionArn": {
+                  "Fn::GetAtt": [
+                    "parseDiscoverEmail",
+                    "Arn"
+                  ]
+                }
+              }
+            }
+          ],
+          "Enabled": true,
+          "Name": "invoke-discover-lambda",
+          "Recipients": [
+            {
+              "Fn::Join": [
+                "",
+                [
+                  "discoverynab@",
+                  {
+                    "Ref": "Domain"
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        "RuleSetName": {
+          "Ref": "liveImportForYnabRuleSet"
+        }
+      },
+      "Type": "AWS::SES::ReceiptRule"
+    },
+    "invokeDiscoverLambdaPermission": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "parseDiscoverEmail"
+        },
+        "Principal": "ses.amazonaws.com",
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        }
+      },
+      "Type": "AWS::Lambda::Permission"
+    },
+    "invokeUSBankLambda": {
+      "Properties": {
+        "After": {
+          "Ref": "invokeWellsFargoLambda"
+        },
+        "Rule": {
+          "Actions": [
+            {
+              "LambdaAction": {
+                "FunctionArn": {
+                  "Fn::GetAtt": [
+                    "parseUSBankEmail",
+                    "Arn"
+                  ]
+                }
+              }
+            }
+          ],
+          "Enabled": true,
+          "Name": "invoke-us-bank-lambda",
+          "Recipients": [
+            {
+              "Fn::Join": [
+                "",
+                [
+                  "usbankynab@",
+                  {
+                    "Ref": "Domain"
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        "RuleSetName": {
+          "Ref": "liveImportForYnabRuleSet"
+        }
+      },
+      "Type": "AWS::SES::ReceiptRule"
+    },
+    "invokeUSBankLambdaPermission": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "parseUSBankEmail"
+        },
+        "Principal": "ses.amazonaws.com",
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        }
+      },
+      "Type": "AWS::Lambda::Permission"
+    },
+    "invokeWellsFargoLambda": {
+      "DependsOn": [
+        "liveImportForYnabRuleSet"
+      ],
+      "Properties": {
+        "After": {
+          "Ref": "invokeCitiLambda"
+        },
+        "Rule": {
+          "Actions": [
+            {
+              "LambdaAction": {
+                "FunctionArn": {
+                  "Fn::GetAtt": [
+                    "parseWellsFargoEmail",
+                    "Arn"
+                  ]
+                }
+              }
+            }
+          ],
+          "Enabled": true,
+          "Name": "invoke-wells-fargo-lambda",
+          "Recipients": [
+            {
+              "Fn::Join": [
+                "",
+                [
+                  "wellsfargoynab@",
+                  {
+                    "Ref": "Domain"
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        "RuleSetName": {
+          "Ref": "liveImportForYnabRuleSet"
+        }
+      },
+      "Type": "AWS::SES::ReceiptRule"
+    },
+    "invokeWellsFargoLambdaPermission": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "parseWellsFargoEmail"
+        },
+        "Principal": "ses.amazonaws.com",
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        }
+      },
+      "Type": "AWS::Lambda::Permission"
+    },
+    "liveImportForYnabRuleSet": {
+      "Properties": {
+        "RuleSetName": "live-import-for-ynab-rule-set"
+      },
+      "Type": "AWS::SES::ReceiptRuleSet"
+    },
     "parseAlliantEmail": {
-      "Type": "AWS::Lambda::Function",
       "Properties": {
         "Code": "lambda_functions/parseAlliantEmail/function/",
         "Environment": {
@@ -39,10 +470,10 @@
         },
         "Runtime": "python3.9",
         "Timeout": 1
-      }
+      },
+      "Type": "AWS::Lambda::Function"
     },
     "parseAssociatedEmail": {
-      "Type": "AWS::Lambda::Function",
       "Properties": {
         "Code": "lambda_functions/parseAssociatedEmail/function/",
         "Environment": {
@@ -65,10 +496,10 @@
         },
         "Runtime": "python3.9",
         "Timeout": 1
-      }
+      },
+      "Type": "AWS::Lambda::Function"
     },
     "parseChaseEmail": {
-      "Type": "AWS::Lambda::Function",
       "Properties": {
         "Code": "lambda_functions/parseChaseEmail/function/",
         "Environment": {
@@ -83,6 +514,11 @@
         },
         "FunctionName": "parseChaseEmail",
         "Handler": "parseChaseEmail.lambda_handler",
+        "Layers": [
+          {
+            "Ref": "parseChaseEmailDependencies"
+          }
+        ],
         "Role": {
           "Fn::GetAtt": [
             "transactionEmailParser",
@@ -90,25 +526,20 @@
           ]
         },
         "Runtime": "python3.9",
-        "Timeout": 1,
-        "Layers": [
-          {
-            "Ref": "parseChaseEmailDependencies"
-          }
-        ]
-      }
+        "Timeout": 1
+      },
+      "Type": "AWS::Lambda::Function"
     },
     "parseChaseEmailDependencies": {
-      "Type": "AWS::Lambda::LayerVersion",
       "Properties": {
         "CompatibleRuntimes": [
           "python3.9"
         ],
         "Content": "lambda_functions/parseChaseEmail/dependencies/"
-      }
+      },
+      "Type": "AWS::Lambda::LayerVersion"
     },
     "parseCitiEmail": {
-      "Type": "AWS::Lambda::Function",
       "Properties": {
         "Code": "lambda_functions/parseCitiEmail/function/",
         "Environment": {
@@ -123,6 +554,11 @@
         },
         "FunctionName": "parseCitiEmail",
         "Handler": "parseCitiEmail.lambda_handler",
+        "Layers": [
+          {
+            "Ref": "parseCitiEmailDependencies"
+          }
+        ],
         "Role": {
           "Fn::GetAtt": [
             "transactionEmailParser",
@@ -130,65 +566,20 @@
           ]
         },
         "Runtime": "python3.9",
-        "Timeout": 1,
-        "Layers": [
-          {
-            "Ref": "parseCitiEmailDependencies"
-          }
-        ]
-      }
+        "Timeout": 1
+      },
+      "Type": "AWS::Lambda::Function"
     },
     "parseCitiEmailDependencies": {
-      "Type": "AWS::Lambda::LayerVersion",
       "Properties": {
         "CompatibleRuntimes": [
           "python3.9"
         ],
         "Content": "lambda_functions/parseCitiEmail/dependencies/"
-      }
-    },
-    "parseWellsFargoEmail": {
-      "Type": "AWS::Lambda::Function",
-      "Properties": {
-        "Code": "lambda_functions/parseWellsFargoEmail/function/",
-        "Environment": {
-          "Variables": {
-            "bucket_name": {
-              "Ref": "transactionEmails"
-            },
-            "table_name": {
-              "Ref": "transactionData"
-            }
-          }
-        },
-        "FunctionName": "parseWellsFargoEmail",
-        "Handler": "parseWellsFargoEmail.lambda_handler",
-        "Role": {
-          "Fn::GetAtt": [
-            "transactionEmailParser",
-            "Arn"
-          ]
-        },
-        "Runtime": "python3.9",
-        "Timeout": 1,
-        "Layers": [
-          {
-            "Ref": "parseWellsFargoEmailDependencies"
-          }
-        ]
-      }
-    },
-    "parseWellsFargoEmailDependencies": {
-      "Type": "AWS::Lambda::LayerVersion",
-      "Properties": {
-        "CompatibleRuntimes": [
-          "python3.9"
-        ],
-        "Content": "lambda_functions/parseWellsFargoEmail/dependencies/"
-      }
+      },
+      "Type": "AWS::Lambda::LayerVersion"
     },
     "parseDiscoverEmail": {
-      "Type": "AWS::Lambda::Function",
       "Properties": {
         "Code": "lambda_functions/parseDiscoverEmail/function/",
         "Environment": {
@@ -211,10 +602,10 @@
         },
         "Runtime": "python3.9",
         "Timeout": 1
-      }
+      },
+      "Type": "AWS::Lambda::Function"
     },
     "parseUSBankEmail": {
-      "Type": "AWS::Lambda::Function",
       "Properties": {
         "Code": "lambda_functions/parseUSBankEmail/function/",
         "Environment": {
@@ -237,27 +628,72 @@
         },
         "Runtime": "python3.9",
         "Timeout": 1
-      }
+      },
+      "Type": "AWS::Lambda::Function"
+    },
+    "parseWellsFargoEmail": {
+      "Properties": {
+        "Code": "lambda_functions/parseWellsFargoEmail/function/",
+        "Environment": {
+          "Variables": {
+            "bucket_name": {
+              "Ref": "transactionEmails"
+            },
+            "table_name": {
+              "Ref": "transactionData"
+            }
+          }
+        },
+        "FunctionName": "parseWellsFargoEmail",
+        "Handler": "parseWellsFargoEmail.lambda_handler",
+        "Layers": [
+          {
+            "Ref": "parseWellsFargoEmailDependencies"
+          }
+        ],
+        "Role": {
+          "Fn::GetAtt": [
+            "transactionEmailParser",
+            "Arn"
+          ]
+        },
+        "Runtime": "python3.9",
+        "Timeout": 1
+      },
+      "Type": "AWS::Lambda::Function"
+    },
+    "parseWellsFargoEmailDependencies": {
+      "Properties": {
+        "CompatibleRuntimes": [
+          "python3.9"
+        ],
+        "Content": "lambda_functions/parseWellsFargoEmail/dependencies/"
+      },
+      "Type": "AWS::Lambda::LayerVersion"
     },
     "postToYnab": {
-      "Type": "AWS::Lambda::Function",
       "Properties": {
         "Code": "lambda_functions/postToYnab/function/",
         "Environment": {
           "Variables": {
-            "table_name": {
-              "Ref": "transactionData"
+            "budget_id": {
+              "Ref": "BudgetId"
             },
             "personal_access_token": {
               "Ref": "PersonalAccessToken"
             },
-            "budget_id": {
-              "Ref": "BudgetId"
+            "table_name": {
+              "Ref": "transactionData"
             }
           }
         },
         "FunctionName": "postToYnab",
         "Handler": "postToYnab.lambda_handler",
+        "Layers": [
+          {
+            "Ref": "postToYnabDependencies"
+          }
+        ],
         "Role": {
           "Fn::GetAtt": [
             "transactionPoster",
@@ -265,247 +701,22 @@
           ]
         },
         "Runtime": "python3.9",
-        "Timeout": 10,
-        "Layers": [
-          {
-            "Ref": "postToYnabDependencies"
-          }
-        ]
-      }
+        "Timeout": 10
+      },
+      "Type": "AWS::Lambda::Function"
     },
     "postToYnabDependencies": {
-      "Type": "AWS::Lambda::LayerVersion",
       "Properties": {
         "CompatibleRuntimes": [
           "python3.9"
         ],
         "Content": "lambda_functions/postToYnab/dependencies/"
-      }
-    },
-    "invokeAlliantLambda": {
-      "Type": "AWS::SES::ReceiptRule",
-      "Properties": {
-        "After": {
-          "Ref": "saveEmail"
-        },
-        "Rule": {
-          "Recipients": [
-            {
-              "Fn::Join": [
-                "",
-                [
-                  "alliantynab@",
-                  {
-                    "Ref": "Domain"
-                  }
-                ]
-              ]
-            }
-          ],
-          "Actions": [
-            {
-              "LambdaAction": {
-                "FunctionArn": {
-                  "Fn::GetAtt": [
-                    "parseAlliantEmail",
-                    "Arn"
-                  ]
-                }
-              }
-            }
-          ],
-          "Enabled": true,
-          "Name": "invoke-alliant-lambda"
-        },
-        "RuleSetName": {
-          "Ref": "liveImportForYnabRuleSet"
-        }
       },
-      "DependsOn": [
-        "liveImportForYnabRuleSet"
-      ]
-    },
-    "invokeAssociatedLambda": {
-      "Type": "AWS::SES::ReceiptRule",
-      "Properties": {
-        "After": {
-          "Ref": "invokeAlliantLambda"
-        },
-        "Rule": {
-          "Recipients": [
-            {
-              "Fn::Join": [
-                "",
-                [
-                  "associatedynab@",
-                  {
-                    "Ref": "Domain"
-                  }
-                ]
-              ]
-            }
-          ],
-          "Actions": [
-            {
-              "LambdaAction": {
-                "FunctionArn": {
-                  "Fn::GetAtt": [
-                    "parseAssociatedEmail",
-                    "Arn"
-                  ]
-                }
-              }
-            }
-          ],
-          "Enabled": true,
-          "Name": "invoke-associated-lambda"
-        },
-        "RuleSetName": {
-          "Ref": "liveImportForYnabRuleSet"
-        }
-      },
-      "DependsOn": [
-        "liveImportForYnabRuleSet"
-      ]
-    },
-    "invokeChaseLambda": {
-      "Type": "AWS::SES::ReceiptRule",
-      "Properties": {
-        "After": {
-          "Ref": "invokeAssociatedLambda"
-        },
-        "Rule": {
-          "Recipients": [
-            {
-              "Fn::Join": [
-                "",
-                [
-                  "chaseynab@",
-                  {
-                    "Ref": "Domain"
-                  }
-                ]
-              ]
-            }
-          ],
-          "Actions": [
-            {
-              "LambdaAction": {
-                "FunctionArn": {
-                  "Fn::GetAtt": [
-                    "parseChaseEmail",
-                    "Arn"
-                  ]
-                }
-              }
-            }
-          ],
-          "Enabled": true,
-          "Name": "invoke-chase-lambda"
-        },
-        "RuleSetName": {
-          "Ref": "liveImportForYnabRuleSet"
-        }
-      },
-      "DependsOn": [
-        "liveImportForYnabRuleSet"
-      ]
-    },
-    "invokeCitiLambda": {
-      "Type": "AWS::SES::ReceiptRule",
-      "Properties": {
-        "After": {
-          "Ref": "invokeDiscoverLambda"
-        },
-        "Rule": {
-          "Recipients": [
-            {
-              "Fn::Join": [
-                "",
-                [
-                  "citiynab@",
-                  {
-                    "Ref": "Domain"
-                  }
-                ]
-              ]
-            }
-          ],
-          "Actions": [
-            {
-              "LambdaAction": {
-                "FunctionArn": {
-                  "Fn::GetAtt": [
-                    "parseCitiEmail",
-                    "Arn"
-                  ]
-                }
-              }
-            }
-          ],
-          "Enabled": true,
-          "Name": "invoke-citi-lambda"
-        },
-        "RuleSetName": {
-          "Ref": "liveImportForYnabRuleSet"
-        }
-      },
-      "DependsOn": [
-        "liveImportForYnabRuleSet"
-      ]
-    },
-    "invokeWellsFargoLambda": {
-      "Type": "AWS::SES::ReceiptRule",
-      "Properties": {
-        "After": {
-          "Ref": "invokeCitiLambda"
-        },
-        "Rule": {
-          "Recipients": [
-            {
-              "Fn::Join": [
-                "",
-                [
-                  "wellsfargoynab@",
-                  {
-                    "Ref": "Domain"
-                  }
-                ]
-              ]
-            }
-          ],
-          "Actions": [
-            {
-              "LambdaAction": {
-                "FunctionArn": {
-                  "Fn::GetAtt": [
-                    "parseWellsFargoEmail",
-                    "Arn"
-                  ]
-                }
-              }
-            }
-          ],
-          "Enabled": true,
-          "Name": "invoke-wells-fargo-lambda"
-        },
-        "RuleSetName": {
-          "Ref": "liveImportForYnabRuleSet"
-        }
-      },
-      "DependsOn": [
-        "liveImportForYnabRuleSet"
-      ]
+      "Type": "AWS::Lambda::LayerVersion"
     },
     "saveEmail": {
-      "Type": "AWS::SES::ReceiptRule",
       "Properties": {
         "Rule": {
-          "Recipients": [
-            {
-              "Ref": "Domain"
-            }
-          ],
           "Actions": [
             {
               "S3Action": {
@@ -516,45 +727,20 @@
             }
           ],
           "Enabled": true,
-          "Name": "save-email"
+          "Name": "save-email",
+          "Recipients": [
+            {
+              "Ref": "Domain"
+            }
+          ]
         },
         "RuleSetName": {
           "Ref": "liveImportForYnabRuleSet"
         }
-      }
-    },
-    "liveImportForYnabRuleSet": {
-      "Type": "AWS::SES::ReceiptRuleSet",
-      "Properties": {
-        "RuleSetName": "live-import-for-ynab-rule-set"
-      }
-    },
-    "transactionEmails": {
-      "Type": "AWS::S3::Bucket",
-      "Properties": {
-        "BucketName": {
-          "Fn::Join": [
-            "",
-            [
-              "ynab-transaction-emails-",
-              {
-                "Ref": "BudgetId"
-              }
-            ]
-          ]
-        },
-        "LifecycleConfiguration": {
-          "Rules": [
-            {
-              "ExpirationInDays": 30,
-              "Status": "Enabled"
-            }
-          ]
-        }
-      }
+      },
+      "Type": "AWS::SES::ReceiptRule"
     },
     "transactionData": {
-      "Type": "AWS::DynamoDB::Table",
       "Properties": {
         "AttributeDefinitions": [
           {
@@ -580,93 +766,33 @@
           "AttributeName": "ttl",
           "Enabled": true
         }
-      }
-    },
-    "transactionStreamToLambda": {
-      "Type": "AWS::Lambda::EventSourceMapping",
-      "Properties": {
-        "BatchSize": 1,
-        "Enabled": true,
-        "EventSourceArn": {
-          "Fn::GetAtt": [
-            "transactionData",
-            "StreamArn"
-          ]
-        },
-        "FunctionName": {
-          "Ref": "postToYnab"
-        },
-        "StartingPosition": "LATEST"
-      }
-    },
-    "transactionPoster": {
-      "Type": "AWS::IAM::Role",
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Version": "2012-10-17",
-          "Statement": [
-            {
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "lambda.amazonaws.com"
-              },
-              "Action": "sts:AssumeRole"
-            }
-          ]
-        },
-        "ManagedPolicyArns": [
-          "arn:aws:iam::aws:policy/service-role/AWSLambdaDynamoDBExecutionRole"
-        ],
-        "RoleName": "transactionPoster",
-        "Policies": [
-          {
-            "PolicyDocument": {
-              "Version": "2012-10-17",
-              "Statement": [
-                {
-                  "Effect": "Allow",
-                  "Action": "dynamodb:GetItem",
-                  "Resource": {
-                    "Fn::GetAtt": [
-                      "transactionData",
-                      "Arn"
-                    ]
-                  }
-                }
-              ]
-            },
-            "PolicyName": "TransactionsDBGet"
-          }
-        ]
-      }
+      },
+      "Type": "AWS::DynamoDB::Table"
     },
     "transactionEmailParser": {
-      "Type": "AWS::IAM::Role",
       "Properties": {
         "AssumeRolePolicyDocument": {
-          "Version": "2012-10-17",
           "Statement": [
             {
+              "Action": "sts:AssumeRole",
               "Effect": "Allow",
               "Principal": {
                 "Service": "lambda.amazonaws.com"
-              },
-              "Action": "sts:AssumeRole"
+              }
             }
-          ]
+          ],
+          "Version": "2012-10-17"
         },
         "ManagedPolicyArns": [
           "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
         ],
-        "RoleName": "transactionEmailParser",
         "Policies": [
           {
             "PolicyDocument": {
-              "Version": "2012-10-17",
               "Statement": [
                 {
-                  "Effect": "Allow",
                   "Action": "dynamodb:PutItem",
+                  "Effect": "Allow",
                   "Resource": {
                     "Fn::GetAtt": [
                       "transactionData",
@@ -674,17 +800,17 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "Version": "2012-10-17"
             },
             "PolicyName": "TransactionsDBPut"
           },
           {
             "PolicyDocument": {
-              "Version": "2012-10-17",
               "Statement": [
                 {
-                  "Effect": "Allow",
                   "Action": "s3:GetObject",
+                  "Effect": "Allow",
                   "Resource": {
                     "Fn::Join": [
                       "",
@@ -700,223 +826,97 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "Version": "2012-10-17"
             },
             "PolicyName": "TransactionEmailsGet"
           }
-        ]
-      }
+        ],
+        "RoleName": "transactionEmailParser"
+      },
+      "Type": "AWS::IAM::Role"
     },
-    "invokeDiscoverLambda": {
-      "Type": "AWS::SES::ReceiptRule",
+    "transactionEmails": {
       "Properties": {
-        "After": {
-          "Ref": "invokeChaseLambda"
-        },
-        "Rule": {
-          "Recipients": [
-            {
-              "Fn::Join": [
-                "",
-                [
-                  "discoverynab@",
-                  {
-                    "Ref": "Domain"
-                  }
-                ]
-              ]
-            }
-          ],
-          "Actions": [
-            {
-              "LambdaAction": {
-                "FunctionArn": {
-                  "Fn::GetAtt": [
-                    "parseDiscoverEmail",
-                    "Arn"
-                  ]
-                }
+        "BucketName": {
+          "Fn::Join": [
+            "",
+            [
+              "ynab-transaction-emails-",
+              {
+                "Ref": "BudgetId"
               }
-            }
-          ],
-          "Enabled": true,
-          "Name": "invoke-discover-lambda"
+            ]
+          ]
         },
-        "RuleSetName": {
-          "Ref": "liveImportForYnabRuleSet"
-        }
-      }
-    },
-    "invokeUSBankLambda": {
-      "Type": "AWS::SES::ReceiptRule",
-      "Properties": {
-        "After": {
-          "Ref": "invokeWellsFargoLambda"
-        },
-        "Rule": {
-          "Recipients": [
+        "LifecycleConfiguration": {
+          "Rules": [
             {
-              "Fn::Join": [
-                "",
-                [
-                  "usbankynab@",
-                  {
-                    "Ref": "Domain"
-                  }
-                ]
-              ]
-            }
-          ],
-          "Actions": [
-            {
-              "LambdaAction": {
-                "FunctionArn": {
-                  "Fn::GetAtt": [
-                    "parseUSBankEmail",
-                    "Arn"
-                  ]
-                }
-              }
-            }
-          ],
-          "Enabled": true,
-          "Name": "invoke-us-bank-lambda"
-        },
-        "RuleSetName": {
-          "Ref": "liveImportForYnabRuleSet"
-        }
-      }
-    },
-    "emailsBucketPolicy": {
-      "Type": "AWS::S3::BucketPolicy",
-      "Properties": {
-        "Bucket": {
-          "Ref": "transactionEmails"
-        },
-        "PolicyDocument": {
-          "Version": "2012-10-17",
-          "Statement": [
-            {
-              "Sid": "AllowSESPuts",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "ses.amazonaws.com"
-              },
-              "Action": "s3:PutObject",
-              "Resource": {
-                "Fn::Join": [
-                  "",
-                  [
-                    "arn:aws:s3:::",
-                    {
-                      "Ref": "transactionEmails"
-                    },
-                    "/*"
-                  ]
-                ]
-              },
-              "Condition": {
-                "StringEquals": {
-                  "aws:Referer": {
-                    "Ref": "AWS::AccountId"
-                  }
-                }
-              }
+              "ExpirationInDays": 30,
+              "Status": "Enabled"
             }
           ]
         }
-      }
+      },
+      "Type": "AWS::S3::Bucket"
     },
-    "invokeAlliantLambdaPermission": {
-      "Type": "AWS::Lambda::Permission",
+    "transactionPoster": {
       "Properties": {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": {
-          "Ref": "parseAlliantEmail"
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              }
+            }
+          ],
+          "Version": "2012-10-17"
         },
-        "Principal": "ses.amazonaws.com",
-        "SourceAccount": {
-          "Ref": "AWS::AccountId"
-        }
-      }
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/service-role/AWSLambdaDynamoDBExecutionRole"
+        ],
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "dynamodb:GetItem",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "transactionData",
+                      "Arn"
+                    ]
+                  }
+                }
+              ],
+              "Version": "2012-10-17"
+            },
+            "PolicyName": "TransactionsDBGet"
+          }
+        ],
+        "RoleName": "transactionPoster"
+      },
+      "Type": "AWS::IAM::Role"
     },
-    "invokeAssociatedLambdaPermission": {
-      "Type": "AWS::Lambda::Permission",
+    "transactionStreamToLambda": {
       "Properties": {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": {
-          "Ref": "parseAssociatedEmail"
+        "BatchSize": 1,
+        "Enabled": true,
+        "EventSourceArn": {
+          "Fn::GetAtt": [
+            "transactionData",
+            "StreamArn"
+          ]
         },
-        "Principal": "ses.amazonaws.com",
-        "SourceAccount": {
-          "Ref": "AWS::AccountId"
-        }
-      }
-    },
-    "invokeChaseLambdaPermission": {
-      "Type": "AWS::Lambda::Permission",
-      "Properties": {
-        "Action": "lambda:InvokeFunction",
         "FunctionName": {
-          "Ref": "parseChaseEmail"
+          "Ref": "postToYnab"
         },
-        "Principal": "ses.amazonaws.com",
-        "SourceAccount": {
-          "Ref": "AWS::AccountId"
-        }
-      }
-    },
-    "invokeCitiLambdaPermission": {
-      "Type": "AWS::Lambda::Permission",
-      "Properties": {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": {
-          "Ref": "parseCitiEmail"
-        },
-        "Principal": "ses.amazonaws.com",
-        "SourceAccount": {
-          "Ref": "AWS::AccountId"
-        }
-      }
-    },
-    "invokeWellsFargoLambdaPermission": {
-      "Type": "AWS::Lambda::Permission",
-      "Properties": {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": {
-          "Ref": "parseWellsFargoEmail"
-        },
-        "Principal": "ses.amazonaws.com",
-        "SourceAccount": {
-          "Ref": "AWS::AccountId"
-        }
-      }
-    },
-    "invokeDiscoverLambdaPermission": {
-      "Type": "AWS::Lambda::Permission",
-      "Properties": {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": {
-          "Ref": "parseDiscoverEmail"
-        },
-        "Principal": "ses.amazonaws.com",
-        "SourceAccount": {
-          "Ref": "AWS::AccountId"
-        }
-      }
-    },
-    "invokeUSBankLambdaPermission": {
-      "Type": "AWS::Lambda::Permission",
-      "Properties": {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": {
-          "Ref": "parseUSBankEmail"
-        },
-        "Principal": "ses.amazonaws.com",
-        "SourceAccount": {
-          "Ref": "AWS::AccountId"
-        }
-      }
+        "StartingPosition": "LATEST"
+      },
+      "Type": "AWS::Lambda::EventSourceMapping"
     }
   }
 }
